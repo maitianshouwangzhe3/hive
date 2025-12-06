@@ -65,7 +65,7 @@ void hive_app::sleep_ms(int ms)
 
 void hive_app::daemon()
 {
-    ::daemon();
+    ::daemon(1, 0);
 }
 
 void hive_app::register_signal(int n)

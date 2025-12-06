@@ -5,6 +5,9 @@
 
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
+
 #define MAX_VARINT_SIZE  16
 
 // 将整数编码为到变长字节数组:
