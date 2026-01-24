@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.14)
 
 project(hive)
 
+set(CMAKE_CXX_STANDARD 17)
+
 aux_source_directory(${PROJECT_SOURCE_DIR}/src HIVE_CORE)
 
 aux_source_directory(${PROJECT_SOURCE_DIR}/lz4 HIVE_LZ4_CORE)

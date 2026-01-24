@@ -1,12 +1,13 @@
 #!/usr/bin/hive
 
 ct = ct or 0;
-
+require "base/descriptor_pb"
 socket_mgr = hive.create_socket_mgr(100, 1024 * 1024, 1024 * 8);
 
 stream = socket_mgr.connect("127.0.0.1", 7571);
-
-
+pb = require "pb"
+pb.load(descriptor_pb)
+print(pb)
 function hive.run()
     hive.sleep_ms(1000);
 	socket_mgr.wait(1000);

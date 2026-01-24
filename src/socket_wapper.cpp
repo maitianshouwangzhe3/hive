@@ -6,15 +6,15 @@
 #include "var_int.h"
 #include "socket_wapper.h"
 
-EXPORT_CLASS_BEGIN(lua_socket_mgr)
-EXPORT_LUA_FUNCTION(wait)
-EXPORT_LUA_FUNCTION(listen)
-EXPORT_LUA_FUNCTION(connect)
-EXPORT_LUA_FUNCTION(set_package_size)
-EXPORT_LUA_FUNCTION(set_lz_threshold)
-EXPORT_LUA_FUNCTION(route)
-EXPORT_LUA_FUNCTION(master)
-EXPORT_CLASS_END()
+LUA_EXPORT_CLASS_BEGIN(lua_socket_mgr)
+LUA_EXPORT_METHOD(wait)
+LUA_EXPORT_METHOD(listen)
+LUA_EXPORT_METHOD(connect)
+LUA_EXPORT_METHOD(set_package_size)
+LUA_EXPORT_METHOD(set_lz_threshold)
+LUA_EXPORT_METHOD(route)
+LUA_EXPORT_METHOD(master)
+LUA_EXPORT_CLASS_END()
 
 lua_socket_mgr::~lua_socket_mgr()
 {
@@ -111,20 +111,20 @@ void lua_socket_mgr::master(uint8_t group_idx, uint32_t token)
     m_router->set_master(group_idx, token);
 }
 
-EXPORT_CLASS_BEGIN(lua_socket_node)
-EXPORT_LUA_FUNCTION(call)
-EXPORT_LUA_FUNCTION(forward_target)
-EXPORT_LUA_FUNCTION_AS(forward_by_group<msg_id::forward_master>, "forward_master")
-EXPORT_LUA_FUNCTION_AS(forward_by_group<msg_id::forward_random>, "forward_random")
-EXPORT_LUA_FUNCTION_AS(forward_by_group<msg_id::forward_broadcast>, "forward_broadcast")
-EXPORT_LUA_FUNCTION(forward_hash)
-EXPORT_LUA_FUNCTION(close)
-EXPORT_LUA_FUNCTION(set_send_cache)
-EXPORT_LUA_FUNCTION(set_recv_cache)
-EXPORT_LUA_FUNCTION(set_timeout)
-EXPORT_LUA_STD_STR_AS_R(m_ip, "ip")
-EXPORT_LUA_INT_AS_R(m_token, "token")
-EXPORT_CLASS_END()
+LUA_EXPORT_CLASS_BEGIN(lua_socket_node)
+LUA_EXPORT_METHOD(call)
+LUA_EXPORT_METHOD(forward_target)
+LUA_EXPORT_METHOD_AS(forward_by_group<msg_id::forward_master>, "forward_master")
+LUA_EXPORT_METHOD_AS(forward_by_group<msg_id::forward_random>, "forward_random")
+LUA_EXPORT_METHOD_AS(forward_by_group<msg_id::forward_broadcast>, "forward_broadcast")
+LUA_EXPORT_METHOD(forward_hash)
+LUA_EXPORT_METHOD(close)
+LUA_EXPORT_METHOD(set_send_cache)
+LUA_EXPORT_METHOD(set_recv_cache)
+LUA_EXPORT_METHOD(set_timeout)
+LUA_EXPORT_PROPERTY_AS(m_ip, "ip")
+LUA_EXPORT_PROPERTY_AS(m_token, "token")
+LUA_EXPORT_CLASS_END()
 
 lua_socket_node::lua_socket_node(uint32_t token, lua_State* L, std::shared_ptr<socket_mgr>& mgr, std::shared_ptr<lua_archiver>& ar, std::shared_ptr<socket_router> router)
     : m_token(token), m_lvm(L), m_mgr(mgr), m_archiver(ar), m_router(router)
@@ -134,19 +134,19 @@ lua_socket_node::lua_socket_node(uint32_t token, lua_State* L, std::shared_ptr<s
     m_mgr->set_accept_callback(token, [this](uint32_t steam_token)
     {
         auto stream = new lua_socket_node(steam_token, m_lvm, m_mgr, m_archiver, m_router);
-        if (!lua_call_object_function(m_lvm, this, "on_accept", std::tie(), stream))
+        if (!lua_call_object_function(m_lvm, nullptr, this, "on_accept", std::tie(), stream))
             delete stream;
     });
 
     m_mgr->set_connect_callback(token, [this]()
     {
         m_mgr->get_remote_ip(m_token, m_ip);
-        lua_call_object_function(m_lvm, this, "on_connected", std::tie(), "ok");
+        lua_call_object_function(m_lvm, nullptr, this, "on_connected", std::tie(), "ok");
     });
 
     m_mgr->set_error_callback(token, [this](const char* err)
     {
-        lua_call_object_function(m_lvm, this, "on_error", std::tie(), err);
+        lua_call_object_function(m_lvm, nullptr, this, "on_error", std::tie(), err);
     });
 
     m_mgr->set_package_callback(token, [this](char* data, size_t data_len)
@@ -346,11 +346,9 @@ void lua_socket_node::on_call(char* data, size_t data_len)
     if (!lua_get_object_function(m_lvm, this, "on_call"))
         return;
 
-    int param_count = 0;
-    if (!m_archiver->load(&param_count, m_lvm, (BYTE*)data, data_len))
-        return;
+    int param_count = m_archiver->load(m_lvm, (BYTE*)data, data_len);
 
-    lua_call_function(m_lvm, param_count, 0);
+    lua_call_function(m_lvm, nullptr, param_count, 0);
 }
 
 int create_socket_mgr(lua_State* L)

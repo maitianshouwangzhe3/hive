@@ -11,14 +11,24 @@
 #include <stdint.h>
 #include <signal.h>
 #include <filesystem>
+#include "lua.hpp"
 #include "tools.h"
 #include "socket_mgr.h"
 #include "socket_wapper.h"
 #include "hive.h"
 
+extern "C" {
+    int luaopen_pb(lua_State *L);
+    int luaopen_lfs(lua_State * L);
+}
+
 #ifdef _MSC_VER
 void daemon() {  } // do nothing !
 #endif
+
+#define REGISTER_LIBRARYS(name, lua_c_fn) \
+    luaL_requiref(L, name, lua_c_fn, 0); \
+    lua_pop(L, 1) /* remove lib */
 
 hive_app* g_app = nullptr;
 
@@ -29,20 +39,20 @@ static void on_signal(int signo) {
     }
 }
 
-EXPORT_CLASS_BEGIN(hive_app)
-EXPORT_LUA_FUNCTION(get_file_time)
-EXPORT_LUA_FUNCTION(get_time_ms)
-EXPORT_LUA_FUNCTION(get_time_ns)
-EXPORT_LUA_FUNCTION(sleep_ms)
-EXPORT_LUA_FUNCTION(daemon)
-EXPORT_LUA_FUNCTION(mkdir)
-EXPORT_LUA_FUNCTION(register_signal)
-EXPORT_LUA_FUNCTION(default_signal)
-EXPORT_LUA_FUNCTION(ignore_signal)
-EXPORT_LUA_FUNCTION(create_socket_mgr)
-EXPORT_LUA_INT64(m_signal)
-EXPORT_LUA_INT(m_reload_time)
-EXPORT_CLASS_END()
+LUA_EXPORT_CLASS_BEGIN(hive_app)
+LUA_EXPORT_METHOD(get_file_time)
+LUA_EXPORT_METHOD(get_time_ms)
+LUA_EXPORT_METHOD(get_time_ns)
+LUA_EXPORT_METHOD(sleep_ms)
+LUA_EXPORT_METHOD(daemon)
+LUA_EXPORT_METHOD(mkdir)
+LUA_EXPORT_METHOD(register_signal)
+LUA_EXPORT_METHOD(default_signal)
+LUA_EXPORT_METHOD(ignore_signal)
+LUA_EXPORT_METHOD(create_socket_mgr)
+LUA_EXPORT_PROPERTY(m_signal)
+LUA_EXPORT_PROPERTY(m_reload_time)
+LUA_EXPORT_CLASS_END()
 
 time_t hive_app::get_file_time(const char* file_name) {
     return ::get_file_time(file_name);
@@ -147,6 +157,8 @@ void hive_app::run(int argc, const char* argv[]) {
     int64_t last_check = ::get_time_ms();
 
     luaL_openlibs(L);
+    REGISTER_LIBRARYS("pb", luaopen_pb);
+    REGISTER_LIBRARYS("lfs", luaopen_lfs);
     lua_push_object(L, this);
     lua_setglobal(L, "hive");
     luaL_dostring(L, g_sandbox);
@@ -156,14 +168,14 @@ void hive_app::run(int argc, const char* argv[]) {
         add_string_to_array(L, "hive", "args", argv[i]);
     }
 
-    lua_call_global_function(L, "import", std::tie(), filename);
+    lua_call_global_function(L, nullptr, "import", std::tie(), filename);
 
-    while (lua_call_object_function(L, this, "run"))
+    while (lua_call_object_function(L, nullptr, this, "run", std::tie()))
     {
         int64_t now = ::get_time_ms();
         if (now > last_check + m_reload_time)
         {
-            lua_call_object_function(L, this, "reload");
+            lua_call_object_function(L, nullptr, this, "reload");
             last_check = now;
         }
     }

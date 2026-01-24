@@ -7,6 +7,8 @@
 
 #include "luna.h"
 
+#include <cstdint>
+
 class hive_app final
 {
 public:
@@ -33,7 +35,7 @@ public:
     void set_signal(int n);
     void run(int argc, const char* argv[]);
 
-    DECLARE_LUA_CLASS(hive_app);
+    DECLARE_LUA_CLASS(hive_app)
 private:
     uint64_t m_signal = 0;
     int32_t m_reload_time = 2000;
