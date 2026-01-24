@@ -20,7 +20,7 @@ int main(int argc, const char* argv[])
     }
 
     g_app = new hive_app();
-    g_app->run(argv[1]);
+    g_app->run(argc, argv);
     delete g_app;
     return 0;
 }

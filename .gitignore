@@ -44,3 +44,7 @@
 .DS_Store
 *.opendb
 *.db
+
+/.cache/
+/build/
+/.vscode/

@@ -11,6 +11,10 @@
 _G.s2s = s2s or {}; --所有server间的rpc定义在s2s中
 
 --socket_mgr = luna.create_socket_mgr(...);
+if not socket_mgr then
+    socket_mgr = hive.create_socket_mgr(100, 1024 * 1024, 1024 * 8);
+end
+
 socket_list = socket_list or {};
 
 --注册服务节点,即: 标记socket所属的服务类型和实例编号
@@ -40,6 +44,7 @@ end
 --心跳消息,略...
 function s2s.heart_beat()
     -- body
+    print("heart_beat");
 end
 
 local on_call = function(socket, msg, ...)
@@ -77,6 +82,9 @@ end
 --为了支持热加载...
 if listen_socket then
     listen_socket.on_accept = on_accept;
+else
+    listen_socket = socket_mgr.listen("127.0.0.1", 8001);
+    listen_socket.on_accept = on_accept;
 end
 
 for i, socket in ipairs(socket_list) do
@@ -85,21 +93,19 @@ for i, socket in ipairs(socket_list) do
 end
 
 hive.run = function()
-	socket_mgr = luna.create_socket_mgr(100, 1024 * 1024, 1024 * 8);
-	listen_socket = socket_mgr.listen("127.0.0.1", 8000);
-	listen_socket.on_accept = on_accept;
+	
 
     local next_reload_time = 0;
 	local quit_flag = false;
     while not quit_flag do
 		socket_mgr.wait(50);
 
-        local now = luna.get_time_ms();
+        local now = hive.get_time_ms();
         if now >= next_reload_time then
-            luna.try_reload();
+            hive.reload();
             next_reload_time = now + 3000;
         end
 
-        quit_flag = luna.get_guit_signal();
+        -- quit_flag = hive.get_guit_signal();
     end
 end

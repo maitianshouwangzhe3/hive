@@ -17,15 +17,21 @@ public:
     int64_t get_time_ns();
     void sleep_ms(int ms);
     void daemon();
+    void mkdir(const char* path);
     void register_signal(int n);
     void default_signal(int n);
     void ignore_signal(int n);
     int create_socket_mgr(lua_State* L);
 
+private:
+    void add_number_to_array(lua_State* L, const char* table_name, const char* array_field_name, lua_Number value);
+
+    void add_string_to_array(lua_State* L, const char* table_name, const char* array_field_name, const char* str);
+
 public:
     void __gc() { } // custom gc, just do nothing
     void set_signal(int n);
-    void run(const char filename[]);
+    void run(int argc, const char* argv[]);
 
     DECLARE_LUA_CLASS(hive_app);
 private:

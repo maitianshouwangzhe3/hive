@@ -141,7 +141,7 @@ lua_socket_node::lua_socket_node(uint32_t token, lua_State* L, std::shared_ptr<s
     m_mgr->set_connect_callback(token, [this]()
     {
         m_mgr->get_remote_ip(m_token, m_ip);
-        lua_call_object_function(m_lvm, this, "on_connected");
+        lua_call_object_function(m_lvm, this, "on_connected", std::tie(), "ok");
     });
 
     m_mgr->set_error_callback(token, [this](const char* err)

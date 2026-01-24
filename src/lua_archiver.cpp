@@ -6,8 +6,8 @@
 #include <assert.h>
 #include <string.h>
 #include <algorithm>
-#include "lua/lua.hpp"
-#include "lz4/lz4.h"
+#include "lua.hpp"
+#include "lz4.h"
 #include "lua_archiver.h"
 #include "var_int.h"
 

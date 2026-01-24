@@ -9,7 +9,7 @@ lib = dl pthread
 # 注意,只是对可执行文件和动态库而言,静态库忽略此项
 target_dir = ./bin
 # 源码目录,注意不会递归
-src_dir_list = . lua lz4
+src_dir_list = src lua lz4
 # 依赖库目录,多个目录用空格分开:
 lib_dir =
 # 本工程(如果)输出.a,.so文件的目录
@@ -24,7 +24,7 @@ ifeq ($(OS), Linux)
 CFLAGS += -DLUA_USE_LINUX
 endif
 
-CXXFLAGS = $(CFLAGS) -Wno-invalid-offsetof -Wno-deprecated-declarations -std=c++1y
+CXXFLAGS = $(CFLAGS) -Wno-invalid-offsetof -Wno-deprecated-declarations -std=c++17
 
 #----------------- 下面部分通常不用改 --------------------------
 
