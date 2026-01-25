@@ -13,7 +13,6 @@ set(HIVE_INC
 
 # 只添加lua子目录以构建静态库，但不安装其中的内容
 add_subdirectory(3rd/lua EXCLUDE_FROM_ALL)
-add_subdirectory(3rd/luna EXCLUDE_FROM_ALL)
 
 # 根据子目录中构建的库调整链接目标
 add_executable(hive ${HIVE_CORE})

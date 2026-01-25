@@ -93,6 +93,7 @@ void hive_app::mkdir(const char* path) {
 }
 
 static const char* g_sandbox = u8R"__(
+package.cpath = package.cpath .. ";./luaclib/?.so"
 hive.files = {};
 hive.meta = {__index=function(t, k) return _G[k]; end};
 hive.print = print;
