@@ -1,0 +1,6 @@
+[submodule "3rd/lua"]
+	path = 3rd/lua
+	url = https://github.com/maitianshouwangzhe3/lua.git
+[submodule "3rd/luna"]
+	path = 3rd/luna
+	url = https://github.com/maitianshouwangzhe3/luna.git

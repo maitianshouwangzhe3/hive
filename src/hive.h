@@ -23,7 +23,6 @@ public:
     void register_signal(int n);
     void default_signal(int n);
     void ignore_signal(int n);
-    int create_socket_mgr(lua_State* L);
 
 private:
     void add_number_to_array(lua_State* L, const char* table_name, const char* array_field_name, lua_Number value);

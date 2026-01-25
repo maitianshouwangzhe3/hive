@@ -13,8 +13,6 @@
 #include <filesystem>
 #include "lua.hpp"
 #include "tools.h"
-#include "socket_mgr.h"
-#include "socket_wapper.h"
 #include "hive.h"
 
 extern "C" {
@@ -49,7 +47,6 @@ LUA_EXPORT_METHOD(mkdir)
 LUA_EXPORT_METHOD(register_signal)
 LUA_EXPORT_METHOD(default_signal)
 LUA_EXPORT_METHOD(ignore_signal)
-LUA_EXPORT_METHOD(create_socket_mgr)
 LUA_EXPORT_PROPERTY(m_signal)
 LUA_EXPORT_PROPERTY(m_reload_time)
 LUA_EXPORT_CLASS_END()
@@ -85,11 +82,6 @@ void hive_app::default_signal(int n) {
 void hive_app::ignore_signal(int n) {
     signal(n, SIG_IGN);
 }
-
-int hive_app::create_socket_mgr(lua_State* L) {
-    return ::create_socket_mgr(L);
-}
-
 void hive_app::set_signal(int n) {
     uint64_t mask = 1;
     mask <<= n;
