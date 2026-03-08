@@ -1,4 +1,4 @@
-#!/usr/bin/luna
+#!hive
 -- 路由转发示例:
 -- router进程只做消息转发,不承担具体业务
 -- 其他服务进程(gamesvr, dbagent, matchsvr...)通过router的包转发来实现相互通信
@@ -8,11 +8,16 @@
 --多个dbagent提供数据库访问服务,访问时,按照哈希分布来访问数据库
 --matchsvr提供全局战斗匹配服务,多个进程以主从备份的方式运行
 
-_G.s2s = s2s or {}; --所有server间的rpc定义在s2s中
+require("common/log");
+require("common/signal");
 
---socket_mgr = luna.create_socket_mgr(...);
-if not socket_mgr then
-    socket_mgr = hive.create_socket_mgr(100, 1024 * 1024, 1024 * 8);
+if not lbus then
+    lbus = require("lbus")
+end
+
+_G.s2s = s2s or {}; --所有server间的rpc定义在s2s中
+if not _G.socket_mgr then
+    _G.socket_mgr = lbus.create_socket_mgr(1024);
 end
 
 socket_list = socket_list or {};
@@ -26,7 +31,8 @@ function s2s.register(socket, group, index)
     --将id映射到0表示这个id位置保留
     --将id映射到nil表示将这个id从路由表中删除
     --在进行哈希转发时,如果遇到token为0的id,则会跳过它往后找,直到遍历整个数组,随机转发也类似
-    socket_mgr.route(socket.id, socket.token);
+    log_debug("register socket, group=%d, index=%d, token=%d", group, index, socket.token);
+    _G.socket_mgr.router(socket.id, socket.token);
 end
 
 --设置自己为某个group的master
@@ -38,19 +44,24 @@ end
 --master之所以记录到数据库,是为了使得进程重启时不发生颠簸或错误,特别是多个router的情况下
 --当然,router这里也可以加一段逻辑: 对多久没更新的master重置为0,master连接断开时也要响应的置0
 function s2s.update_master(socket, group)
-    socket_mgr.master(group, socket.token);
+    _G.socket_mgr.master(group, socket.token);
 end
 
 --心跳消息,略...
 function s2s.heart_beat()
     -- body
-    print("heart_beat");
+    -- print("heart_beat");
 end
 
-local on_call = function(socket, msg, ...)
+local on_recv = function(socket, msg, ...)
+    -- log_debug("s2s msg: %s", msg);
     local proc = s2s[msg];
     if proc then
         proc(socket, ...);
+        local ok, err = xpcall(proc, debug.traceback, socket, ...);
+        if not ok then
+            log_err("remote call error: %s", err);
+        end
         return;
     end
     print("remote call not exist: "..tostring(msg));
@@ -68,14 +79,14 @@ local on_error = function(socket, err)
 
     if socket.id then
         --如果要实现固定哈希,则 route(socket.id, 0),当然,还得预先将所有的id注册
-        socket_mgr.route(socket.id, nil);
+        _G.socket_mgr.route(socket.id, nil);
     end
 end
 
 local on_accept = function(socket)
     print("accept new connection, ip="..socket.ip);
     socket_list[#socket_list + 1] = socket;
-    socket.on_call = function(...) on_call(socket, ...); end
+    socket.on_recv = function(...) on_recv(socket, ...); end
     socket.on_error = function(...) on_error(socket, ...); end
 end
 
@@ -83,29 +94,19 @@ end
 if listen_socket then
     listen_socket.on_accept = on_accept;
 else
-    listen_socket = socket_mgr.listen("127.0.0.1", 8001);
+    listen_socket = _G.socket_mgr.listen("127.0.0.1", 8001);
     listen_socket.on_accept = on_accept;
 end
 
 for i, socket in ipairs(socket_list) do
-    socket.on_call = function(...) on_call(socket, ...); end
+    socket.on_recv = function(...) on_recv(socket, ...); end
     socket.on_error = function(...) on_error(socket, ...); end
 end
 
 hive.run = function()
-	
+    _G.socket_mgr.wait(50);
 
-    local next_reload_time = 0;
-	local quit_flag = false;
-    while not quit_flag do
-		socket_mgr.wait(50);
-
-        local now = hive.get_time_ms();
-        if now >= next_reload_time then
-            hive.reload();
-            next_reload_time = now + 3000;
-        end
-
-        -- quit_flag = hive.get_guit_signal();
+    if check_quit_signal() then
+        hive.run = nil;
     end
 end

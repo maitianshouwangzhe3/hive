@@ -12,6 +12,7 @@
 #include <signal.h>
 #include <filesystem>
 #include "lua.hpp"
+#include "luna.h"
 #include "tools.h"
 #include "hive.h"
 
@@ -31,6 +32,7 @@ void daemon() {  } // do nothing !
 hive_app* g_app = nullptr;
 
 static void on_signal(int signo) {
+    printf("signal: %d\n", signo);
     if (g_app)
     {
         g_app->set_signal(signo);
@@ -72,7 +74,7 @@ void hive_app::daemon() {
 }
 
 void hive_app::register_signal(int n) {
-    signal(n, SIG_DFL);
+    signal(n, on_signal);
 }
 
 void hive_app::default_signal(int n) {
@@ -80,7 +82,7 @@ void hive_app::default_signal(int n) {
 }
 
 void hive_app::ignore_signal(int n) {
-    signal(n, SIG_IGN);
+    signal(n, on_signal);
 }
 void hive_app::set_signal(int n) {
     uint64_t mask = 1;
@@ -93,32 +95,36 @@ void hive_app::mkdir(const char* path) {
 }
 
 static const char* g_sandbox = u8R"__(
-package.cpath = package.cpath .. ";./luaclib/?.so"
+package.cpath = package.cpath .. ";./luaclib/?.so";
 hive.files = {};
 hive.meta = {__index=function(t, k) return _G[k]; end};
-hive.print = print;
+hive.print = log_info or print;
 hive.args = {};
 
 local do_load = function(filename, env)
     local trunk, msg = loadfile(filename, "bt", env);
     if not trunk then
-        hive.print(string.format("load file: %s ... ... [failed]", filename));
-        hive.print(msg);
+        log_info(string.format("load file: %s ... ... [failed]", filename));
+        log_info(msg);
         return nil;
     end
 
     local ok, err = pcall(trunk);
     if not ok then
-        hive.print(string.format("exec file: %s ... ... [failed]", filename));
-        hive.print(err);
+        log_info(string.format("exec file: %s ... ... [failed]", filename));
+        log_info(err);
         return nil;
     end
 
-    hive.print(string.format("load file: %s ... ... [ok]", filename));
+    log_info(string.format("load file: %s ... ... [ok]", filename));
     return env;
 end
 
 function import(filename)
+    if filename:sub(-4) ~= ".lua" then
+        filename = filename .. ".lua";
+    end
+
     local file_module = hive.files[filename];
     if file_module then
         return file_module.env;

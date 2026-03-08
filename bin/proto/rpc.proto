@@ -1,0 +1,16 @@
+
+
+syntax = "proto3";
+
+package rpc;
+
+message rpc_requst {
+  string service_name = 1;
+  string func_name = 2;
+  bytes args = 3;
+}
+
+message rpc_response {
+  int32 code = 1;
+  bytes result = 2;
+}

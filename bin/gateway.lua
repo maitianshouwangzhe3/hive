@@ -1,0 +1,146 @@
+#!./hive
+require("common/log");
+require("common/tree");
+require("common/alt_getopt");
+require("common/signal");
+require("common/service");
+
+if not lfs then
+    lfs = require("rpc.lfs")
+end
+ 
+if not lbus then
+    lbus = require("lbus")
+end
+
+if not socket then
+    socket = require("common.socket")
+end
+
+if not hpms then
+    hpms = require("common.hpms")
+end
+
+if not evloop then
+    evloop = require("common.evloop")
+end
+
+_G.s2s = s2s or {};
+_G.c2s = c2s or {};
+
+if not hive.init_flag then
+    local long_opts = 
+    {
+        routers=1, --router addr: 127.0.0.1:6000;127.0.0.1:6001
+        listen=1, --listen addr for client: 127.0.0.1:5000
+        index=1, --instance index
+        daemon=0, 
+        log=1, --log file: gamesvr.1
+        connections=1, --max-connection-count
+    };
+    local args, optind = alt_getopt.get_opts(hive.args, "", long_opts);
+
+    if args.daemon then
+        hive.daemon(1, 1);
+    end
+
+    log_open(args.log or "gateway", 60000);
+
+    hive.print = log_info;
+    _G.print = log_debug;
+    _G.socket_mgr = lbus.create_socket_mgr(args.connections or 1024);
+
+    -- socket_mgr.set_pb(true)
+    hive.args = args;
+    hive.optind = optind;
+    hive.start_time = hive.start_time or hive.get_time_ms();
+    hive.frame = hive.frame or 0;
+
+    rmgr = import("rpc/rpc_mgr.lua");
+    rmgr.setup(lfs.currentdir());
+
+    router_mgr = import("common/router_mgr.lua");
+    session_mgr = import("gateway/session_mgr.lua");
+
+    router_mgr.setup("gateway");
+    session_mgr.setup();
+    evloop.start("0.0.0.0:8989", function (fd, ip, port)
+        log_debug("accept a connection: %d, %s:%d %s", fd, ip, port, type(session_mgr.client_loop));
+        socket.bind(fd, session_mgr.client_loop);
+    end);
+
+    hive.init_flag = true;
+    hive.socket = socket
+    hive.evloop = evloop;
+    hive.hpms = hpms;
+end
+
+collectgarbage("stop");
+
+hive.run = function()
+    hive.now = os.time();
+
+    hive.evloop.wait(10);
+
+    local count = socket_mgr.wait(10);
+    local cost_time = hive.get_time_ms() - hive.start_time;
+    if 100 * hive.frame <  cost_time  then
+        hive.frame = hive.frame + 1;
+        local ok, err = xpcall(on_tick, debug.traceback, hive.frame);
+        if not ok then
+            log_err("on_tick error: %s", err);
+        end
+        collectgarbage("collect");
+    end
+
+    if check_quit_signal() then
+        log_info("service quit for signal !");
+        hive.run = nil;
+    end
+end
+
+function on_tick(frame)
+    if frame % 10  == 0 then
+        _G.call_router_all("heart_beat", nil);
+    end
+
+    router_mgr.update(frame);
+    session_mgr.update(frame);
+end
+
+lobby_list = lobby_list or {};
+lobby_stream = lobby_stream or {};
+
+function s2s.sync_payload(id, payload, ip, port)
+	local node = lobby_list[id] or {};
+    node.id = id;
+	node.payload = payload;
+	node.ip = ip;
+	node.port = port;
+	node.time = os.time();
+    if lobby_list[id] == nil then
+        log_debug("new lobby, id=%s, payload=%s, url=%s:%s", service_id2name(id), payload, ip, port);
+		lobby_stream[id] = socket_mgr.connect(node.ip, node.port);
+	end
+	lobby_list[id] = node;
+end
+
+function find_best_lobby()
+	local sel = nil;
+	local now = os.time();
+	for id, node in pairs(lobby_list) do
+		if node.time > now - service_timeout_value then
+			if sel == nil or node.payload < sel.payload then
+				sel = node;
+                break
+			end
+		end
+	end
+	return sel;
+end
+hive.find_best_lobby = find_best_lobby;
+function c2s.test(ss, msg)
+    log_info("c2s test, token=%s, msg=%s", ss.token, msg.name);
+end
+
+

@@ -1,0 +1,17 @@
+
+
+syntax = "proto3";
+
+package c2s;
+
+message hello_request {
+  string name = 1;
+}
+
+message hello_reply {
+  string message = 1;
+}
+
+service hello_service {
+  rpc say_hello (hello_request) returns (hello_reply);
+}

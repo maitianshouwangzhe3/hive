@@ -275,8 +275,28 @@ static pb_Slice lpb_toslice(lua_State *L, int idx) {
     return pb_slice(NULL);
 }
 
+static pb_Slice lpb_toslice_binary(lua_State *L, int idx) {
+    int type = lua_type(L, idx);
+    if (type == LUA_TLIGHTUSERDATA) {
+        const char* buf = (const char*)lua_touserdata(L, idx);
+        if (buf) {
+            int data_len = luaL_checkinteger(L, idx + 1);
+            if (data_len > 0) {
+                return pb_lslice(buf, data_len);
+            }
+        }
+    }
+    return pb_slice(NULL);
+}
+
 LUALIB_API pb_Slice lpb_checkslice(lua_State *L, int idx) {
     pb_Slice ret = lpb_toslice(L, idx);
+    if (ret.p == NULL) lpb_typeerror(L, idx, "string/buffer/slice");
+    return ret;
+}
+
+LUALIB_API pb_Slice lpb_checkslice_binary(lua_State *L, int idx) {
+    pb_Slice ret = lpb_toslice_binary(L, idx);
     if (ret.p == NULL) lpb_typeerror(L, idx, "string/buffer/slice");
     return ret;
 }
@@ -1737,9 +1757,12 @@ static int Lpb_encode(lua_State *L) {
     lpbE_encode(&e, 2, t);
     if (e.b != &LS->buffer)
         lua_settop(L, 3);
-    else
+    else {
         lua_pushlstring(L, pb_buffer(e.b), pb_bufflen(e.b));
-    return 1;
+        lua_pushinteger(L, pb_bufflen(e.b));
+    }
+
+    return 2;
 }
 
 static int lpbE_pack(lpb_Env* e, int idx, const pb_Type* t) {
@@ -1952,6 +1975,12 @@ static int Lpb_decode(lua_State *L) {
             lpb_checkslice(L, 2), 3);
 }
 
+static int Lpb_decode_binary(lua_State *L) {
+    return lpbD_decode(L, lua_isnoneornil(L, 2) ?
+            pb_lslice(NULL, 0) :
+            lpb_checkslice_binary(L, 2), 4);
+}
+
 void lpb_pushunpackdef(lua_State* L, lpb_State* LS, const pb_Type* t, pb_Field** l, int top) {
     int mode = t->is_proto3 && LS->encode_mode == LPB_DEFDEF ?
         LPB_COPYDEF : LS->encode_mode;
@@ -2064,6 +2093,7 @@ LUALIB_API int luaopen_pb(lua_State *L) {
         ENTRY(loadfile),
         ENTRY(encode),
         ENTRY(decode),
+        ENTRY(decode_binary),
         ENTRY(types),
         ENTRY(fields),
         ENTRY(type),
